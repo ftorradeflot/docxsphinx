@@ -23,12 +23,23 @@ from docx import Document
 
 from docutils import nodes, writers
 
+# Is the PIL imaging library installed?
+try:
+    import PIL.Image
+except ImportError:
+    try:  # sometimes PIL modules are put in PYTHONPATH's root
+        import Image
+        class PIL(object): pass  # dummy wrapper
+        PIL.Image = Image
+    except ImportError:
+        PIL = None
+
 import logging
 logging.basicConfig(
     filename='docx.log',
     filemode='w',
     level=logging.INFO,
-    format="%(asctime)-15s  %(message)s"
+    format="%(asctime)-15s %(levelname)s:  %(message)s"
 )
 logger = logging.getLogger('docx')
 
@@ -148,8 +159,8 @@ class DocxTranslator(nodes.NodeVisitor):
         "A list of older states, e.g. typically [document, table-cell]"
 
         self.current_paragraph = None
-        "The current paragraph that text is being added to."
 
+        "The current paragraph that text is being added to."
     def add_text(self, text):
         dprint()
         textrun = self.current_paragraph.add_run(text)
@@ -638,12 +649,118 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         uri = node.attributes['uri']
         file_path = os.path.join(self.builder.env.srcdir, uri)
-        self.docx_container.add_picture(file_path)  # width=Inches(1.25))
-        # .. todo:: 'width' keyword is not supported
+        
+        width, height = self.get_image_scaled_width_height(node, file_path)
+        logger.info('width: {}, height: {}'.format(width, height))
+        self.docx_container.add_picture(file_path, width, height)  
 
     def depart_image(self, node):
         dprint()
+        
+    def get_image_width_height(self, node, attr):
+        size = None
+        if attr in node.attributes:
+            size = node.attributes[attr]
+            if size[-1] == '%':
+                size = float(size[:-1])
+                size = [size, '%']
+            else:
+                unit = size[-2:]
+                if unit.isalpha():
+                    size = size[:-2]
+                else:
+                    unit = 'px'
+                try:
+                    size = float(size)
+                except ValueError as e:
+                    logger.warning(
+                        'Invalid %s for image: "%s"' % (
+                            attr, node.attributes[attr]))
+                size = [size, unit]
+        return size
 
+    def get_image_scale(self, node):
+        if 'scale' in node.attributes:
+            try:
+                scale = int(node.attributes['scale'])
+                if scale < 1:  # or scale > 100:
+                    logger.warning(
+                        'scale out of range (%s), using 1.' % (scale, ))
+                    scale = 1
+                scale = scale * 0.01
+            except ValueError as e:
+                logger.warning(
+                    'Invalid scale for image: "%s"' % (
+                        node.attributes['scale'], ))
+        else:
+            scale = 1.0
+        return scale
+
+    def get_image_scaled_width_height(self, node, filename):
+        
+        document_width = self.docx_container.sections[0].page_width - \
+            self.docx_container.sections[0].left_margin - \
+            self.docx_container.sections[0].right_margin
+        document_height = self.docx_container.sections[0].page_height
+        logger.info('document size: {}x{}'.format(document_width, document_height))
+        
+        dpi = (72, 72)
+        if PIL is not None:
+            imageobj = PIL.Image.open(filename, 'r')
+            dpi = imageobj.info.get('dpi', dpi)
+            # dpi information can be (xdpi, ydpi) or xydpi
+            try: iter(dpi)
+            except: dpi = (dpi, dpi)
+        else:
+            imageobj = None
+
+        scale = self.get_image_scale(node)
+        width = self.get_image_width_height(node, 'width')
+        height = self.get_image_width_height(node, 'height')
+
+        logger.info('initial image width: {} and height: {}'.format(width, height))
+
+        if width is not None and width[1] == '%':
+            width = [
+                int(document_width * width[0]/100), 'px']
+
+            image_ratio = imageobj.size[0]/imageobj.size[1]
+            height = [int(width[0]/image_ratio), 'px']
+            logger.info('% size width: {} height: {}'.format(width, height))
+                
+        if width is None or height is None:
+            if imageobj is None:
+                raise RuntimeError('image size not fully specified and PIL not installed')
+            if width is None: width = [imageobj.size[0], 'px']
+            if height is None: height = [imageobj.size[1], 'px']
+
+        width[0] *= scale
+        height[0] *= scale
+        if width[1] == 'in':
+            width = [width[0] * dip[0], 'px']
+        if height[1] == 'in':
+            height = [height[0] * dip[1], 'px']
+
+        #  We shoule shulink image (multiply 72/96)
+        width[0] *= 0.75
+        height[0] *= 0.75
+
+        #
+        maxwidth = int(document_width * 0.9)
+
+        if width[0] > maxwidth:
+            ratio = height[0] / width[0]
+            width[0] = maxwidth
+            height[0] = width[0] * ratio
+
+        maxheight = int(document_width * 0.9)
+        if height[0] > maxheight:
+            ratio = width[0] / height[0]
+            height[0] = maxheight
+            width[0] = height[0] * ratio
+
+        return int(width[0]), int(height[0])
+    
     def visit_transition(self, node):
         dprint()
         raise nodes.SkipNode
