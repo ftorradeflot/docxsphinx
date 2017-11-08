@@ -162,12 +162,12 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         self.old_states.append(self.current_state)
         self.current_state = DocxState(location=location)
-        print("HB new_state: {}".format(len(self.old_states)))
+        logger.debug("HB new_state: {}".format(len(self.old_states)))
 
     def end_state(self, first=None):
         dprint()
         self.current_state = self.old_states.pop()
-        print("HB old_state: {}".format(len(self.old_states)))
+        logger.debug("HB old_state: {}".format(len(self.old_states)))
 
     def visit_start_of_file(self, node):
         dprint()
@@ -533,7 +533,7 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         colspecs = [c for c in node.children if isinstance(c, nodes.colspec)]
         self.current_state.ncolumns = len(colspecs)
-        print("HB VT {} {} {}".format(
+        logger.debug("HB VT {} {} {}".format(
             self.current_state.ncolumns, len(node.children), [type(c) for c in node.children]))
 
     def depart_tgroup(self, node):
@@ -703,20 +703,20 @@ class DocxTranslator(nodes.NodeVisitor):
                 if not curloc.paragraphs[0].text:
                     # An empty paragraph is created when a Cell is created.
                     # Reuse this paragraph.
-                    print("HB VLI reuse {}".format(style))
+                    logger.debug("HB VLI reuse {}".format(style))
                     self.current_paragraph = curloc.paragraphs[0]
                     self.current_paragraph.style = style
                 else:
-                    print("HB VLI create 1 {}".format(style))
+                    logger.debug("HB VLI create 1 {}".format(style))
                     self.current_paragraph = curloc.add_paragraph(style=style)
             else:
-                print("HB VLI create 2 {}".format(style))
+                logger.debug("HB VLI create 2 {}".format(style))
                 self.current_paragraph = curloc.add_paragraph(style=style)
         else:
-            print("HB VLI create 3 {}".format(style))
+            logger.debug("HB VLI create 3 {}".format(style))
             self.current_paragraph = curloc.add_paragraph(style=style)
 
-        print("HB VLI end {}".format(self.current_paragraph.style))
+        logger.debug("HB VLI end {}".format(self.current_paragraph.style))
 
     def depart_list_item(self, node):
         dprint()
@@ -922,7 +922,7 @@ class DocxTranslator(nodes.NodeVisitor):
         curloc = self.current_state.location
 
         if 'List' in self.current_paragraph.style.name and not self.current_paragraph.text:
-            print("HB VP List")
+            logger.debug("HB VP List")
             # This is the first paragraph in a list item, so do not create another one.
             pass
         elif isinstance(curloc, _Cell):
@@ -931,21 +931,21 @@ class DocxTranslator(nodes.NodeVisitor):
                     # An empty paragraph is created when a Cell is created.
                     # Reuse this paragraph.
                     self.current_paragraph = curloc.paragraphs[0]
-                    print("HB VP cell reuse")
+                    logger.debug("HB VP cell reuse")
                 else:
                     self.current_paragraph = curloc.add_paragraph()
-                    print("HB VP cell create 1")
+                    logger.debug("HB VP cell create 1")
             else:
                 self.current_paragraph = curloc.add_paragraph()
-                print("HB VP cell create 2")
+                logger.debug("HB VP cell create 2")
             # HACK because the style is messed up, TODO FIX
             self.current_paragraph.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
             self.current_paragraph.paragraph_format.left_indent = 0
         else:
-            print("HB VP normal")
+            logger.debug("HB VP normal")
             self.current_paragraph = curloc.add_paragraph()
 
-        print("HB VP end {}".format(self.current_paragraph.style))
+        logger.debug("HB VP end {}".format(self.current_paragraph.style))
 
     def depart_paragraph(self, node):
         dprint()
@@ -1121,7 +1121,7 @@ class DocxTranslator(nodes.NodeVisitor):
         comment = node[0]
         if 'DocxTableStyle' in comment:
             self.current_state.table_style = comment.split('DocxTableStyle')[-1].strip()
-        print("HB tablestyle {}".format(self.current_state.table_style))
+        logger.debug("HB tablestyle {}".format(self.current_state.table_style))
         raise nodes.SkipNode
 
     def visit_meta(self, node):
