@@ -22,6 +22,7 @@ from docx.table import _Cell
 from docx import Document
 
 from docutils import nodes, writers
+from docxsphinx.autodoc_writer import ClassWriter
 
 # Is the PIL imaging library installed?
 try:
@@ -227,12 +228,12 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_rubric(self, node):
         dprint()
-        raise nodes.SkipNode
+        #raise nodes.SkipNode
         # self.add_text('-[ ')
 
     def depart_rubric(self, node):
         dprint()
-        raise nodes.SkipNode
+        #raise nodes.SkipNode
         # self.add_text(' ]-')
 
     def visit_compound(self, node):
@@ -276,8 +277,10 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_desc(self, node):
+        if node.children[0].children[0].astext() == 'class ':
+            self.write_class(node)
         dprint()
-        pass
+        raise nodes.SkipNode
 
     def depart_desc(self, node):
         dprint()
@@ -285,11 +288,11 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_signature(self, node):
         dprint()
-        raise nodes.SkipNode
+        pass #raise nodes.SkipNode
 
     def depart_desc_signature(self, node):
         dprint()
-        raise nodes.SkipNode
+        pass #raise nodes.SkipNode
 
     def visit_desc_name(self, node):
         dprint()
@@ -357,11 +360,16 @@ class DocxTranslator(nodes.NodeVisitor):
 
     def visit_desc_annotation(self, node):
         dprint()
-        pass
+        self.add_text(node.astext())
+        if node.astext() == 'class ':
+            self.in_class = True
+            self.strong = True
+            
 
     def depart_desc_annotation(self, node):
         dprint()
-        pass
+        if node.astext() == 'class ':
+            self.add_text('(')        
 
     def visit_refcount(self, node):
         dprint()
@@ -1261,3 +1269,10 @@ class DocxTranslator(nodes.NodeVisitor):
         dprint()
         raise nodes.SkipNode
         # raise NotImplementedError('Unknown node: ' + node.__class__.__name__)
+
+    def write_class(self, node):
+
+        w = ClassWriter(self, node)
+        w.write()
+
+
