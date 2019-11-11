@@ -85,7 +85,7 @@ class ClassWriter():
                 
                 definition_list, = self.get_children_nodes_from_types(desc_content,
                                                                       ['definition_list'])
-                self.write_definition_list(definition_list)
+                if definition_list: self.write_definition_list(definition_list)
                     
     def write_definition_list(self, definition_list_node):
         
