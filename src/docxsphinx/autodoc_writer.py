@@ -1,8 +1,12 @@
+import logging
 
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 
 PAR_INDENT_PT = 30
+SPACE_TITLE_CONTENT = 3
+
+logger = logging.getLogger('docx')
 
 class ClassWriter():
 
@@ -33,6 +37,9 @@ class ClassWriter():
     def write_main(self, desc_signature, desc_content, curr_indent=0):
         
         #self.translator.current_paragraph.paragraph_format.space_before = Pt(10)
+        logger.info('Writing Main')
+        logger.info('Desc signature = {}'.format(desc_signature))
+        logger.info('Desc content = {}'.format(desc_content))
         desc_annotation = ''
         desc_module = ''
         desc_name = ''
@@ -56,11 +63,12 @@ class ClassWriter():
         r.bold = True
         p.paragraph_format.left_indent = Pt(curr_indent)
         p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
-        p.paragraph_format.space_after = Pt(0)
+        p.paragraph_format.space_after = Pt(SPACE_TITLE_CONTENT)
         self.translator.current_paragraph = p
         #self.translator.strong = False
         
         for nodes in desc_content.children:
+            logger.info('Adding Child : {}, {}'.format(nodes.tagname, nodes.astext()))
             if nodes.tagname == 'paragraph':
                 p = self.translator.current_state.location.add_paragraph(nodes.astext())
                 p.paragraph_format.left_indent = Pt(curr_indent + PAR_INDENT_PT)
@@ -69,14 +77,17 @@ class ClassWriter():
                 
                 self.translator.current_paragraph = p
                 #self.translator.current_state.location = p
+            elif nodes.tagname == 'field_list':
+                self.write_field_list(nodes)
                
     def write_class_content(self):
         
+        logger.info('Writing Class content')
         curr_indent = self.translator.current_paragraph.paragraph_format.left_indent
         curr_indent = curr_indent and curr_indent.pt or 0
         
         for node in self.desc_content.children:
-            #self.translator.add_text(str(node.children))
+            logger.info('Adding Child : {}'.format(node.children))
             #self.translator.add_text(node.tagname + ', ' + node.astext())
             if node.tagname == 'desc':
                 desc_signature, desc_content = self.get_children_nodes_from_types(node, \
@@ -102,12 +113,31 @@ class ClassWriter():
             
             p = curr_loc.add_paragraph(term.astext() + ' : ' + classifier.astext())            
             p.paragraph_format.left_indent = Pt(curr_indent)
-            p.paragraph_format.space_after = Pt(0)
+            p.paragraph_format.space_after = Pt(SPACE_TITLE_CONTENT)
             
             p = curr_loc.add_paragraph(definition.astext())
             p.paragraph_format.left_indent = Pt(curr_indent + PAR_INDENT_PT)
             p.paragraph_format.space_before = Pt(0)
             p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
             #self.translator.current_paragraph = p
-                
-                 
+    
+    def write_field_list(self, field_list_node):
+        
+        curr_loc = self.translator.current_state.location
+        curr_indent = self.translator.current_paragraph.paragraph_format.left_indent
+        curr_indent = curr_indent and curr_indent.pt or 0
+        
+        for field in field_list_node:
+            p = self.translator.current_state.location.add_paragraph()
+            p.paragraph_format.left_indent = Pt(curr_indent)
+            p.paragraph_format.space_after = Pt(SPACE_TITLE_CONTENT)
+            r = p.add_run(field.children[0].astext())
+            r.bold = True
+            
+            p = self.translator.current_state.location.add_paragraph() 
+            r = p.add_run(field.children[1].astext())
+            p.paragraph_format.left_indent = Pt(curr_indent + PAR_INDENT_PT)
+            p.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
+            p.paragraph_format.space_before = Pt(0)
+            self.translator.current_paragraph = p
+            
