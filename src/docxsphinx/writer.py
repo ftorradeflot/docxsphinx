@@ -26,7 +26,6 @@ from docutils import nodes, writers
 from docxsphinx.autodoc_writer import ClassWriter
 
 from .logger import dprint
-from gtk.keysyms import doublelowquotemark
 
 # Is the PIL imaging library installed?
 try:
