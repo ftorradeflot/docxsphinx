@@ -23,7 +23,7 @@ from docx.table import _Cell
 from docx import Document
 
 from docutils import nodes, writers
-from docxsphinx.autodoc_writer import ClassWriter
+from docxsphinx.autodoc_writer import DescWriter
 
 from .logger import dprint
 
@@ -256,8 +256,9 @@ class DocxTranslator(nodes.NodeVisitor):
         pass
 
     def visit_desc(self, node):
-        if node.children[0].children[0].astext() == 'class ':
-            self.write_class(node)
+        w = DescWriter(self, node)
+        w.write()
+        
         dprint()
         raise nodes.SkipNode
 
